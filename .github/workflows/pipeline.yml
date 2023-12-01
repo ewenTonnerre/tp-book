@@ -53,3 +53,6 @@ jobs:
         with:
           coverage_results_path: build/customJacocoReportDir/test/jacocoTestReport.xml
           coverage_report_name: Coverage
+
+      - name: Mutation tests
+        run: ./gradlew pitest
