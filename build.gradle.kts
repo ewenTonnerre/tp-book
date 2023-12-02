@@ -16,6 +16,17 @@ java {
 	sourceCompatibility = JavaVersion.VERSION_17
 }
 
+sourceSets {
+	create("testIntegration") {
+		compileClasspath += sourceSets.main.get().output
+		runtimeClasspath += sourceSets.main.get().output
+	}
+}
+
+val testIntegrationImplementation: Configuration by configurations.getting {
+	extendsFrom(configurations.implementation.get())
+}
+
 repositories {
 	mavenCentral()
 }
@@ -23,11 +34,21 @@ repositories {
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
+	implementation("org.springframework.boot:spring-boot-starter-web")
+	implementation("org.liquibase:liquibase-core")
+	implementation("org.postgresql:postgresql")
+	implementation("org.springframework.boot:spring-boot-starter-jdbc")
+
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("com.willowtreeapps.assertk:assertk:0.27.0")
 	testImplementation("net.jqwik:jqwik-spring:0.10.0")
-	testImplementation("io.mockk:mockk:1.9.3")
+	testImplementation("io.mockk:mockk:1.13.8")
 	testImplementation("info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.15.0")
+
+	testIntegrationImplementation("io.mockk:mockk:1.13.8")
+	testIntegrationImplementation("com.willowtreeapps.assertk:assertk:0.27.0")
+	testIntegrationImplementation("com.ninja-squad:springmockk:4.0.2")
+	testIntegrationImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 
 tasks.withType<KotlinCompile> {
@@ -39,6 +60,12 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+task<Test>("testIntegration") {
+	useJUnitPlatform()
+	testClassesDirs = sourceSets["testIntegration"].output.classesDirs
+	classpath = sourceSets["testIntegration"].runtimeClasspath
 }
 
 tasks.test {
