@@ -11,4 +11,15 @@ class BookUseCase(private val bookPort: BookPort) {
     fun listBooks() : List<Book>{
         return bookPort.list().sortedBy { it.title.replaceFirstChar {char -> char.uppercase() } }
     }
+
+    // TP
+    fun reserveBook(bookTitle: String) {
+        val book = bookPort.getBookByTitle(bookTitle) ?: throw Exception("Book doesn't exist")
+
+        if (book.reserved){
+            throw Exception("Book is already reserved")
+        } else {
+            bookPort.reserveBook(bookTitle)
+        }
+    }
 }

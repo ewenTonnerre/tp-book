@@ -9,15 +9,41 @@ import org.springframework.stereotype.Service
 @Service
 class BookDAO(private val namedParameterJdbcTemplate: NamedParameterJdbcTemplate) : BookPort {
     override fun createBook(book: Book) {
-        namedParameterJdbcTemplate.update("INSERT INTO book (title, author)", mapOf(
+        namedParameterJdbcTemplate.update("INSERT INTO book (title, author, reserved) values (:title, :author, :reserved)", mapOf(
                 "title" to book.title,
-                "author" to book.author
+                "author" to book.author,
+                "reserved" to book.reserved
         ))
     }
 
     override fun list(): List<Book>{
-        return namedParameterJdbcTemplate.query("SELECT * FROM book", MapSqlParameterSource()) {
-            res, _ -> Book(res.getString("title"), res.getString("author"))
+        return namedParameterJdbcTemplate
+                .query("SELECT * FROM book", MapSqlParameterSource()) { rs, _ ->
+                    Book(
+                            title = rs.getString("title"),
+                            author = rs.getString("author"),
+                            reserved = rs.getBoolean("reserved")
+                    )
+                }
+    }
+
+    override fun reserveBook(bookTitle: String) {
+        namedParameterJdbcTemplate.update(
+                "UPDATE book SET reserved = true WHERE title = :title",
+                mapOf("title" to bookTitle)
+        )
+    }
+
+    override fun getBookByTitle(bookTitle: String) : Book? {
+        return namedParameterJdbcTemplate.queryForObject(
+                "SELECT * FROM book WHERE title = :title",
+                mapOf("title" to bookTitle)
+        ) { rs, _ ->
+            Book(
+                    title = rs.getString("title"),
+                    author = rs.getString("author"),
+                    reserved = rs.getBoolean("reserved")
+            )
         }
     }
 }

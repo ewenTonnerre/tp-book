@@ -1,8 +1,11 @@
 package com.example.demo.domain.usecase
 
+import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.containsExactlyInAnyOrder
+import assertk.assertions.hasMessage
+import assertk.assertions.isInstanceOf
 import com.example.demo.domain.model.Book
 import com.example.demo.domain.port.BookPort
 import com.example.demo.infrastructure.driven.adapter.BookDAO
@@ -26,6 +29,43 @@ class BookUseCaseTest {
 
     @MockK
     private lateinit var mockBookPort: BookPort
+
+    // TP
+    @Test
+    fun `reserve book`() {
+        val book = Book("A", "B", false)
+        justRun { mockBookPort.reserveBook(any()) }
+        every { mockBookPort.getBookByTitle(any()) } returns book
+
+        bookUseCase.reserveBook("A")
+
+        verify(exactly = 1) { mockBookPort.getBookByTitle("A") }
+        verify(exactly = 1) { mockBookPort.reserveBook(book.title) }
+    }
+
+    // TP
+    @Test
+    fun `book doesn't exist`() {
+        justRun { mockBookPort.reserveBook(any()) }
+        every { mockBookPort.getBookByTitle(any()) } returns null
+
+        assertFailure { bookUseCase.reserveBook("La ligne verte") }
+                .isInstanceOf(Exception::class)
+                .hasMessage("Book doesn't exist")
+    }
+
+    // TP
+    @Test
+    fun `book already reserved`() {
+        val book = Book("A", "B", true)
+
+        justRun { mockBookPort.reserveBook(any()) }
+        every { mockBookPort.getBookByTitle(any()) } returns book
+
+        assertFailure { bookUseCase.reserveBook("A") }
+                .isInstanceOf(Exception::class)
+                .hasMessage("Book is already reserved")
+    }
 
     @Test
     fun `add book`() {

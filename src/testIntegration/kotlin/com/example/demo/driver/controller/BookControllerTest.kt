@@ -1,4 +1,4 @@
-package com.example.demo
+package com.example.demo.driver.controller
 
 import com.example.demo.domain.model.Book
 import com.example.demo.domain.usecase.BookUseCase
@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
 import io.mockk.justRun
-import jdk.jshell.spi.ExecutionControl.InternalException
+import io.mockk.verify
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
@@ -15,6 +15,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.patch
 import org.springframework.test.web.servlet.post
 
 @ExtendWith(SpringExtension::class)
@@ -28,12 +29,16 @@ class BookControllerTest {
 
     @Test
     fun `get books`() {
+        // GIVEN
         every { bookUseCase.listBooks() } returns listOf(
                 Book("Avatar", "James"),
                 Book("Tenet", "Jean"),
         )
 
-        mockMvc.get("/books").andExpect{
+        //WHEN
+        mockMvc.get("/books")
+        //THEN
+        .andExpect{
             status { isOk() }
             content { content { MediaType.APPLICATION_JSON } }
             content { json(
@@ -41,11 +46,13 @@ class BookControllerTest {
                         [
                             {
                               "title": "Avatar",
-                              "author": "James"
+                              "author": "James",
+                              "reserved": false
                             },
                             {
                               "title": "Tenet",
-                              "author": "Jean"
+                              "author": "Jean",
+                              "reserved": false
                             }
                         ]
                     """.trimIndent()
@@ -58,11 +65,27 @@ class BookControllerTest {
         justRun { bookUseCase.createBook(any()) }
 
         mockMvc.post("/books") {
+            // language=json
+            content = """
+                {
+                  "title": "title",
+                  "author": "author",
+                  "reserved": true
+                }
+            """.trimIndent()
             contentType = MediaType.APPLICATION_JSON
-            content = ObjectMapper().writeValueAsString(Book("title","author"))
+            accept = MediaType.APPLICATION_JSON
         }.andExpect{
             status { isCreated() }
         }
+
+        val expected = Book(
+                title = "title",
+                author = "author",
+                reserved = true
+        )
+
+        verify(exactly = 1) { bookUseCase.createBook(expected) }
     }
 
     @Test
@@ -74,17 +97,38 @@ class BookControllerTest {
         }.andExpect{
             status { isBadRequest() }
         }
+
+        verify(exactly = 0) { bookUseCase.createBook(any()) }
     }
 
     @Test
-    fun `create book server error`() {
-        every { bookUseCase.createBook(any()) }.throws(Exception("error"))
+    fun `reserve book`() {
+        justRun { bookUseCase.reserveBook(any()) }
 
-        mockMvc.post("/books") {
+        mockMvc.patch("/books/reserve") {
             contentType = MediaType.APPLICATION_JSON
-            content = ObjectMapper().writeValueAsString(Book("title","author"))
+            content = """
+                            {
+                              "bookTitle": "Avatar"
+                            }
+                    """.trimIndent()
         }.andExpect{
-            status { isInternalServerError() }
+            status { isCreated() }
         }
+
+        verify(exactly = 1) { bookUseCase.reserveBook("Avatar") }
+    }
+
+    @Test
+    fun `reserve book missing field`() {
+        justRun { bookUseCase.reserveBook(any()) }
+
+        mockMvc.patch("/books/reserve") {
+            contentType = MediaType.APPLICATION_JSON
+        }.andExpect{
+            status { isBadRequest() }
+        }
+
+        verify(exactly = 0) { bookUseCase.reserveBook(any()) }
     }
 }
